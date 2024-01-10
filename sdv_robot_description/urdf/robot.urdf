@@ -6,6 +6,7 @@
 
   <xacro:include filename="$(find sdv_robot_description)/urdf/wheels_sdv.xacro" />
 
+
   <!-- Robot mechanical and motor parameters -->
   <xacro:property name="PI" value="3.1415926535897931"/>
   <xacro:property name="wheel_width" value="0.175" />

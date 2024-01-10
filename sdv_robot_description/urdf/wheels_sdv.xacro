@@ -163,6 +163,7 @@
         </geometry>
       </collision>
 
+
       <xacro:thick_walled_tube_inertial
           inner_rad="${hub_dia / 2}" outer_rad="${tire_dia / 2}"
           height="${tire_width}" mass="${wheel_mass}"/>
