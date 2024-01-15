@@ -42,4 +42,10 @@ source install/setup.bash
 ros2 launch sdv_lidar_processing lidar_Processing.launch.py
 ```
  
-
+# Lidar 3D clustering 
+```bash
+colcon build --packages-select lidar3d_clustering
+source install/setup.bash
+ros2 launch lidar3d_clustering lidar3d.launch.py
+```
+ 
