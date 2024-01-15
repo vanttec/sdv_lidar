@@ -43,7 +43,7 @@ private:
     double roi_max_z_ = 0.1; //UP THE VELODYNE
 
     double roi_min_x_ = -4.0; //RIGHT THE CAR 
-    double roi_min_y_ = -1.0; //BACK THE CAR
+    double roi_min_y_ = -0.15; //BACK THE CAR
     double roi_min_z_ = -1.5; //DOWN THE VELODYNE
 
     Eigen::Vector4f ROI_MAX_POINT, ROI_MIN_POINT;

@@ -56,11 +56,6 @@ private:
     std::vector<Box> curr_boxes_; 
     std::vector<Box> prev_boxes_;
 
-    float thresh_dist = 0.5; // Threshold for very close obstacles
-    float thresh_dist_2 = 1.5; // Threshold for moderately close obstacles
-    float thresh_dist_3 = 3.0; // Threshold for distant obstacles
-    int highest_warning_code = 4; // To store the highest severity warning code
-
     std::shared_ptr<lidar_obstacle_detector::ObstacleDetector<pcl::PointXYZ>> obstacle_detector;
 
 
@@ -350,8 +345,18 @@ void ObjectDetection::publisherboxes(std::vector<BBox>&& bboxes, const std_msgs:
         corner_marker.id = id++;
         marker_array.markers.push_back(corner_marker);
 
+
+        rclcpp::Duration marker_lifetime = rclcpp::Duration::from_seconds(3);
+
+
+        top_square_marker.lifetime = marker_lifetime;
+        bottom_square_marker.lifetime = marker_lifetime;
+        connecting_lines_marker.lifetime = marker_lifetime;
+        corner_marker.lifetime = marker_lifetime;
+
         marker_pub_next->publish(marker_array);
     }
+
 
 
 }
@@ -359,6 +364,12 @@ void ObjectDetection::publisherboxes(std::vector<BBox>&& bboxes, const std_msgs:
 
 void ObjectDetection::distance_detector(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>&& cloud_clusters, const std_msgs::msg::Header& header)
 {
+
+    float thresh_dist = 1.0; // Threshold for very close obstacles
+    float thresh_dist_2 = 2.7; // Threshold for moderately close obstacles
+    float thresh_dist_3 = 7.0; // Threshold for distant obstacles
+    int highest_warning_code = 4; // To store the highest severity warning code
+
 
     for (auto& cluster : cloud_clusters)
     {
@@ -383,6 +394,9 @@ void ObjectDetection::distance_detector(std::vector<pcl::PointCloud<pcl::PointXY
         if (warning_code < highest_warning_code) {
             highest_warning_code = warning_code;
         }
+        
+
+        std::cout << " Warning code: " << warning_code << " Distance: " << min_distance << std::endl;
 
     }
 
@@ -418,10 +432,10 @@ void ObjectDetection::warnning_display(const int warning_code)
     wall_marker.pose.orientation.y = 0.0;
     wall_marker.pose.orientation.z = 0.0;
     wall_marker.pose.orientation.w = 1.0;
-    wall_marker.scale.x = 2.0;
-    wall_marker.scale.y = 0.1;
+    wall_marker.scale.x = 2.5;
+    wall_marker.scale.y = 0.05;
     wall_marker.scale.z = 1.0;
-    wall_marker.color.a = 0.3;
+    wall_marker.color.a = 0.35;
 
     if (warning_code == 1) {
         wall_marker.color.r = 1.0;
