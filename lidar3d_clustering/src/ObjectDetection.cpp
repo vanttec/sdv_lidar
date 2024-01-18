@@ -21,6 +21,9 @@
 #include <pcl/segmentation/extract_clusters.h>
 #include <pcl/filters/extract_indices.h>
 #include <pcl_conversions/pcl_conversions.h>
+#include <pcl/surface/convex_hull.h>
+#include <pcl/segmentation/extract_polygonal_prism_data.h>
+
 
 using namespace std;
 
@@ -59,13 +62,15 @@ private:
     std::shared_ptr<lidar_obstacle_detector::ObstacleDetector<pcl::PointXYZ>> obstacle_detector;
 
 
-    void distance_detector(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>&& cloud_clusters, const std_msgs::msg::Header& header);
+    void distance_detector(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>&& cloud_clusters);
 
     void box3dcreation(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>&& cloud_clusters, const std_msgs::msg::Header& header);
 
     void publisherboxes(std::vector<BBox>&& bboxes, const std_msgs::msg::Header& header);
 
     void warnning_display(const int warning_code);
+
+    void convex_hull(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>&& cloud_clusters);
 
     // Point Cloud callback
     void pointCloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
@@ -75,6 +80,8 @@ private:
     // rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr ground_seg_pub_;
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_pub_next;
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr wall_warning;
+    rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr hull_publisher_;
+
 
 
 public:
@@ -116,6 +123,10 @@ ObjectDetection::ObjectDetection(/* args */) : Node("lidar3d_clustering_node")
     // Create point processor
     obstacle_detector = std::make_shared<lidar_obstacle_detector::ObstacleDetector<pcl::PointXYZ>>();
 
+    hull_publisher_ = this->create_publisher<visualization_msgs::msg::Marker>(
+        "convex_hull_marker", 10); // Change "convex_hull_marker" and 10 to your desired topic and queue size
+
+
     obstacle_id_ = 0;
     RCLCPP_INFO(this->get_logger(), "lidar3d_Clustering_node initialized");
 
@@ -139,6 +150,8 @@ ObjectDetection::~ObjectDetection()
 // Point Cloud callback
 void ObjectDetection::pointCloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
 {
+
+
     // Convert ROS PointCloud2 to PCL PointCloud
     pcl::PointCloud<pcl::PointXYZ>::Ptr input_cloud(new pcl::PointCloud<pcl::PointXYZ>);
     pcl::fromROSMsg(*msg, *input_cloud);
@@ -147,10 +160,14 @@ void ObjectDetection::pointCloudCallback(const sensor_msgs::msg::PointCloud2::Sh
     auto segmented_clouds = obstacle_detector->segmentPlane(input_cloud, 100, GROUND_THRESHOLD);
     auto cloud_clusters = obstacle_detector->clustering(input_cloud, CLUSTER_THRESH, CLUSTER_MIN_SIZE, CLUSTER_MAX_SIZE);
 
+
+
     box3dcreation(std::move(cloud_clusters), msg->header);
 
+    distance_detector(std::move(cloud_clusters));
+
     
-    distance_detector(std::move(cloud_clusters), msg->header);
+    convex_hull(std::move(cloud_clusters));
 
     std::cout << "Number of clustersasdasd: " << cloud_clusters.size() << std::endl;
 
@@ -362,7 +379,7 @@ void ObjectDetection::publisherboxes(std::vector<BBox>&& bboxes, const std_msgs:
 }
 
 
-void ObjectDetection::distance_detector(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>&& cloud_clusters, const std_msgs::msg::Header& header)
+void ObjectDetection::distance_detector(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>&& cloud_clusters)
 {
 
     float thresh_dist = 1.0; // Threshold for very close obstacles
@@ -415,6 +432,7 @@ void ObjectDetection::distance_detector(std::vector<pcl::PointCloud<pcl::PointXY
 }
 
 
+
 void ObjectDetection::warnning_display(const int warning_code)
 {
 
@@ -456,6 +474,68 @@ void ObjectDetection::warnning_display(const int warning_code)
     }
 
     wall_warning->publish(wall_marker);
+
+}
+
+
+void ObjectDetection::convex_hull(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>&& cloud_clusters)
+{
+
+    pcl::PointCloud<pcl::PointXYZ>::Ptr mergedCloud(new pcl::PointCloud<pcl::PointXYZ>);
+
+    // Merge all point clouds in cloud_clusters into mergedCloud
+    for (const auto& cloud : cloud_clusters)
+    {
+        *mergedCloud += *cloud;
+    }
+
+    pcl::PointCloud<pcl::PointXYZ>::Ptr convexHull(new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::ConvexHull<pcl::PointXYZ> hull;
+
+    hull.setInputCloud(mergedCloud); // Pass the merged point cloud
+    // Make sure that the resulting hull is bidimensional.
+    hull.setDimension(2);
+    hull.reconstruct(*convexHull);
+
+    if (hull.getDimension() == 2)
+    {
+        // Convert the convex hull point cloud to a polygon
+        std::vector<geometry_msgs::msg::Point> hull_points;
+        for (const auto& point : convexHull->points)
+        {
+            geometry_msgs::msg::Point p;
+            p.x = point.x;
+            p.y = point.y;
+            p.z = point.z;
+            hull_points.push_back(p);
+        }
+
+
+        // Create a Marker message
+        visualization_msgs::msg::Marker hull_marker;
+        hull_marker.header.frame_id = "velodyne";  // replace with your frame ID
+        hull_marker.header.stamp = this->get_clock()->now();
+        hull_marker.ns = "hull";
+        hull_marker.id = 0;
+        hull_marker.type = visualization_msgs::msg::Marker::LINE_STRIP;  // or LINE_LIST
+        hull_marker.action = visualization_msgs::msg::Marker::ADD;
+
+        // Set marker scale
+        hull_marker.scale.x = 0.1;  // width of the line, adjust as needed
+
+        // Set marker color
+        hull_marker.color.r = 1.0;
+        hull_marker.color.g = 0.0;
+        hull_marker.color.b = 0.0;
+        hull_marker.color.a = 1.0;  // Alpha value for opacity
+
+        // Assign points to the marker
+        hull_marker.points = hull_points;
+
+        // Now publish the marker
+        hull_publisher_->publish(hull_marker);
+
+    }
 
 }
 
