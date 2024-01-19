@@ -150,7 +150,7 @@ ObjectDetection::~ObjectDetection()
 // Point Cloud callback
 void ObjectDetection::pointCloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
 {
-
+    // TODO: Implement a handler for the point cloud callback to avoid empty point cloud
 
     // Convert ROS PointCloud2 to PCL PointCloud
     pcl::PointCloud<pcl::PointXYZ>::Ptr input_cloud(new pcl::PointCloud<pcl::PointXYZ>);
@@ -481,60 +481,54 @@ void ObjectDetection::warnning_display(const int warning_code)
 void ObjectDetection::convex_hull(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>&& cloud_clusters)
 {
 
-    pcl::PointCloud<pcl::PointXYZ>::Ptr mergedCloud(new pcl::PointCloud<pcl::PointXYZ>);
-
-    // Merge all point clouds in cloud_clusters into mergedCloud
-    for (const auto& cloud : cloud_clusters)
+    if (!cloud_clusters.empty())
     {
-        *mergedCloud += *cloud;
-    }
-
-    pcl::PointCloud<pcl::PointXYZ>::Ptr convexHull(new pcl::PointCloud<pcl::PointXYZ>);
-    pcl::ConvexHull<pcl::PointXYZ> hull;
-
-    hull.setInputCloud(mergedCloud); // Pass the merged point cloud
-    // Make sure that the resulting hull is bidimensional.
-    hull.setDimension(2);
-    hull.reconstruct(*convexHull);
-
-    if (hull.getDimension() == 2)
-    {
-        // Convert the convex hull point cloud to a polygon
-        std::vector<geometry_msgs::msg::Point> hull_points;
-        for (const auto& point : convexHull->points)
+        for (size_t i = 0; i < cloud_clusters.size(); ++i)
         {
-            geometry_msgs::msg::Point p;
-            p.x = point.x;
-            p.y = point.y;
-            p.z = point.z;
-            hull_points.push_back(p);
+            pcl::PointCloud<pcl::PointXYZ>::Ptr convexHull(new pcl::PointCloud<pcl::PointXYZ>);
+            pcl::ConvexHull<pcl::PointXYZ> hull;
+
+            hull.setInputCloud(cloud_clusters[i]); // Pass each individual cluster
+            hull.setDimension(2);
+            hull.reconstruct(*convexHull);
+
+            if (hull.getDimension() == 2)
+            {
+                std::vector<geometry_msgs::msg::Point> hull_points;
+                for (const auto& point : convexHull->points)
+                {
+                    geometry_msgs::msg::Point p;
+                    p.x = point.x;
+                    p.y = point.y;
+                    p.z = 0.0;
+                    hull_points.push_back(p);
+                }
+
+                visualization_msgs::msg::Marker hull_marker;
+                hull_marker.header.frame_id = "base_footprint";  // replace with your frame ID
+                hull_marker.header.stamp = this->get_clock()->now();
+                hull_marker.ns = "hull";
+                hull_marker.id = i;
+                hull_marker.type = visualization_msgs::msg::Marker::LINE_STRIP;
+                hull_marker.action = visualization_msgs::msg::Marker::ADD;
+                hull_marker.scale.x = 0.1;
+                hull_marker.color.r = 0.0;
+                hull_marker.color.g = 0.0;
+                hull_marker.color.b = 1.0;
+                hull_marker.color.a = 1.0;
+                hull_marker.points = hull_points;
+
+                hull_publisher_->publish(hull_marker); 
+
+
+                
+            }
+            else
+            {
+                RCLCPP_INFO(this->get_logger(), "The chosen hull dimension is not correct.");
+            }
+            std::cout << "Hull size: " << convexHull.size() << std::endl;
         }
-
-
-        // Create a Marker message
-        visualization_msgs::msg::Marker hull_marker;
-        hull_marker.header.frame_id = "velodyne";  // replace with your frame ID
-        hull_marker.header.stamp = this->get_clock()->now();
-        hull_marker.ns = "hull";
-        hull_marker.id = 0;
-        hull_marker.type = visualization_msgs::msg::Marker::LINE_STRIP;  // or LINE_LIST
-        hull_marker.action = visualization_msgs::msg::Marker::ADD;
-
-        // Set marker scale
-        hull_marker.scale.x = 0.1;  // width of the line, adjust as needed
-
-        // Set marker color
-        hull_marker.color.r = 1.0;
-        hull_marker.color.g = 0.0;
-        hull_marker.color.b = 0.0;
-        hull_marker.color.a = 1.0;  // Alpha value for opacity
-
-        // Assign points to the marker
-        hull_marker.points = hull_points;
-
-        // Now publish the marker
-        hull_publisher_->publish(hull_marker);
-
     }
 
 }
