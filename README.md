@@ -63,6 +63,9 @@ lidar3d_Clustering_node:
 
 ```
 
-
+# In the lab computer
+ ```bash
+ros2 bag play /home/rola/ros2/ros_bags/vanttec_2/rosbag2_2023_05_23-18_50_43_0-001.db3
+```
  
 
