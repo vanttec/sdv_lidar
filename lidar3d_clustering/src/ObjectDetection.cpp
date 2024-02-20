@@ -257,7 +257,7 @@ void ObjectDetection::pointCloudCallback(const sensor_msgs::msg::PointCloud2::Sh
                             .count();
 
   RCLCPP_INFO(this->get_logger(),
-              "Planar Segmentation callback finished in %d ms", execution_time);
+              "Planar Segmentation callback finished in %ld ms", execution_time);
 
 
 }
@@ -468,7 +468,7 @@ void ObjectDetection::warnning_display(const int warning_code)
 {
 
     visualization_msgs::msg::Marker wall_marker;
-    wall_marker.header.frame_id = "detector_box";
+    wall_marker.header.frame_id = "detector_wall";
     wall_marker.header.stamp = rclcpp::Clock().now();
     wall_marker.ns = "wall";
     wall_marker.id = 0;
@@ -571,7 +571,7 @@ void ObjectDetection::publish_zone(const Zone& zone1, const Zone& zone2) {
 
 visualization_msgs::msg::Marker ObjectDetection::create_zone_marker(const Zone& zone, int id, const std::string& color) {
     visualization_msgs::msg::Marker marker;
-    marker.header.frame_id = "warnings_zones_front"; // Or your relevant frame
+    marker.header.frame_id = "base_footprint"; // Or your relevant frame
     marker.header.stamp = this->get_clock()->now();
     marker.ns = "zone";
     marker.id = id;
