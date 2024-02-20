@@ -2,6 +2,8 @@
 // RORS2
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
+#include <std_msgs/msg/int32.hpp>
+
 #include <visualization_msgs/msg/marker_array.hpp>
 #include <visualization_msgs/msg/marker.hpp>
 
@@ -122,26 +124,17 @@ private:
     Zone front_zone;
     Zone front_zone_warning;
 
-
+    int32_t int_side_value_ = 0;
 
     std::shared_ptr<lidar_obstacle_detector::ObstacleDetector<pcl::PointXYZ>> obstacle_detector;
 
-
-    void distance_detector(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>&& cloud_clusters);
-
     void box3dcreation(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>&& cloud_clusters, const std_msgs::msg::Header& header);
-
     void publisherboxes(std::vector<BBox>&& bboxes, const std_msgs::msg::Header& header);
-
     void warnning_display(const int warning_code);
-
-    void convex_hull(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>&& cloud_clusters);
-
-    void check_zones(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>&& cloud_clusters);
-
+    void check_zones_all_points_version2(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>&& cloud_clusters);
     void publish_zone(const Zone& zone1, const Zone& zone2);
-
     visualization_msgs::msg::Marker create_zone_marker(const Zone& zone, int id, const std::string& color);
+    void side_topic_callback(const std_msgs::msg::Int32::SharedPtr msg);
 
 
 
@@ -150,26 +143,22 @@ private:
 
     // Subscriber & Publisher
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr sub_points_cloud_;
-    // rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr ground_seg_pub_;
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_pub_next;
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr wall_warning;
-    rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr hull_publisher_;
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr zone_publisher_;
-
-
 
 
 public:
     ObjectDetection(/* args */);
     ~ObjectDetection();
 };
-// to left or right, to the top or down
+// lower left, upper left, upper right, lower rigth   ->   y, x
 ObjectDetection::ObjectDetection(/* args */) : Node("lidar3d_clustering_node"), front_zone(Point{-1.2, 0.0}, Point{-1.2, 2.0}, Point{1.2, 2.0}, Point{1.2, 0.0}), front_zone_warning(Point{-1.2, 2.1}, Point{-1.2, 4.0}, Point{1.2, 4.0}, Point{1.2, 2.1}) 
 {
     // Parameters
     this->declare_parameter("GROUND_THRESHOLD", 0.2);
     this->declare_parameter("CLUSTER_THRESH", 0.5);
-    this->declare_parameter("CLUSTER_MAX_SIZE", 3000);
+    this->declare_parameter("CLUSTER_MAX_SIZE", 5000);
     this->declare_parameter("CLUSTER_MIN_SIZE", 10);
     this->declare_parameter("USE_PCA_BOX", true);
     this->declare_parameter("DISPLACEMENT_THRESH", 0.2);
@@ -188,8 +177,6 @@ ObjectDetection::ObjectDetection(/* args */) : Node("lidar3d_clustering_node"), 
     this->get_parameter("USE_TRACKING", USE_TRACKING);
 
     
-
-    
     // Create subscriber
     sub_points_cloud_ = this->create_subscription<sensor_msgs::msg::PointCloud2>("/points_roi", 10, std::bind(&ObjectDetection::pointCloudCallback, this, std::placeholders::_1)); // roi points cloud
 
@@ -200,12 +187,7 @@ ObjectDetection::ObjectDetection(/* args */) : Node("lidar3d_clustering_node"), 
     // Create point processor
     obstacle_detector = std::make_shared<lidar_obstacle_detector::ObstacleDetector<pcl::PointXYZ>>();
 
-    hull_publisher_ = this->create_publisher<visualization_msgs::msg::Marker>(
-        "convex_hull_marker", 10); // Change "convex_hull_marker" and 10 to your desired topic and queue size
-
     zone_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("visualization_zone_array", 10);
-
-
 
     obstacle_id_ = 0;
     // front_zone = Zone(Point{0.0, -1.0}, Point{0.0, 1.0}, Point{2.0, 1.0}, Point{2.0, -1.0});
@@ -223,7 +205,6 @@ ObjectDetection::ObjectDetection(/* args */) : Node("lidar3d_clustering_node"), 
     // RCLCPP_INFO(this->get_logger(), "IOU_THRESH: %f", IOU_THRESH);
     // RCLCPP_INFO(this->get_logger(), "USE_TRACKING: %d", USE_TRACKING);
 
-
 }
 
 ObjectDetection::~ObjectDetection()
@@ -233,6 +214,8 @@ ObjectDetection::~ObjectDetection()
 // Point Cloud callback
 void ObjectDetection::pointCloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
 {
+
+    auto init_time = std::chrono::system_clock::now();
 
     // Convert ROS PointCloud2 to PCL PointCloud
     pcl::PointCloud<pcl::PointXYZ>::Ptr input_cloud(new pcl::PointCloud<pcl::PointXYZ>);
@@ -245,20 +228,37 @@ void ObjectDetection::pointCloudCallback(const sensor_msgs::msg::PointCloud2::Sh
     }
 
     try {
+
+
+        // RCLCPP_INFO(this->get_logger(), "Number of points in the input cloud: %zu", input_cloud->size());
+
+
         // auto segmented_clouds = obstacle_detector->segmentPlane(input_cloud, 100, GROUND_THRESHOLD);
         auto cloud_clusters = obstacle_detector->clustering(input_cloud, CLUSTER_THRESH, CLUSTER_MIN_SIZE, CLUSTER_MAX_SIZE);
 
         // Proceed with further processing only if valid data is present
         if (!cloud_clusters.empty()) {
+
             box3dcreation(std::move(cloud_clusters), msg->header);
-            convex_hull(std::move(cloud_clusters));
-            // distance_detector(std::move(cloud_clusters));
-            check_zones(std::move(cloud_clusters));
+
+            // RCLCPP_INFO(this->get_logger(), "Number of clusters: %zu", cloud_clusters.size());
+
+            check_zones_all_points_version2(std::move(cloud_clusters));
+
             publish_zone(front_zone, front_zone_warning);
+
         }
     } catch (const std::exception& e) {
         RCLCPP_ERROR(this->get_logger(), "Error processing point cloud: %s", e.what());
     }
+
+  auto execution_time = std::chrono::duration_cast<std::chrono::milliseconds>(
+                            std::chrono::system_clock::now() - init_time)
+                            .count();
+
+  RCLCPP_INFO(this->get_logger(),
+              "Planar Segmentation callback finished in %d ms", execution_time);
+
 
 }
 
@@ -462,65 +462,13 @@ void ObjectDetection::publisherboxes(std::vector<BBox>&& bboxes, const std_msgs:
 }
 
 
-void ObjectDetection::distance_detector(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>&& cloud_clusters)
-{
-
-    float thresh_dist = 1.0; // Threshold for very close obstacles
-    float thresh_dist_2 = 2.7; // Threshold for moderately close obstacles
-    float thresh_dist_3 = 7.0; // Threshold for distant obstacles
-    int highest_warning_code = 4; // To store the highest severity warning code
-
-
-    for (auto& cluster : cloud_clusters)
-    {
-        float min_distance = std::numeric_limits<float>::max();
-        int warning_code = 4;
-
-        for (const auto& point : cluster->points) {
-            float distance = sqrt(point.x * point.x + point.y * point.y);
-            if (distance < min_distance) {
-                min_distance = distance;
-            }
-        }
-
-        if (min_distance < thresh_dist) {
-            warning_code = 1; // Very close obstacle
-        } else if (min_distance >= thresh_dist && min_distance < thresh_dist_2) {
-            warning_code = 2; // Moderately close obstacle
-        } else if (min_distance >= thresh_dist_2 && min_distance < thresh_dist_3) {
-            warning_code = 3; // Distant obstacle
-        }
-
-        if (warning_code < highest_warning_code) {
-            highest_warning_code = warning_code;
-        }
-        
-
-        std::cout << " Warning code: " << warning_code << " Distance: " << min_distance << std::endl;
-
-    }
-
-    if (highest_warning_code == 1) {
-        RCLCPP_INFO(this->get_logger(), "[WARNING 220] Obstacle detected in less than 1.0m radius");
-    } else if (highest_warning_code == 2) {
-        RCLCPP_INFO(this->get_logger(), "[WARNING 330] Obstacle detected in 1.0 to 4.5m radius");
-    } else if (highest_warning_code == 3) {
-        RCLCPP_INFO(this->get_logger(), "[WARNING 550] Obstacle detected in 4.5 to 7.0m radius");
-    } else {
-        RCLCPP_INFO(this->get_logger(), "[INFO 000] No obstacle detected");
-    }
-
-    warnning_display(highest_warning_code);
-
-}
-
 
 
 void ObjectDetection::warnning_display(const int warning_code)
 {
 
     visualization_msgs::msg::Marker wall_marker;
-    wall_marker.header.frame_id = "detector_wall";
+    wall_marker.header.frame_id = "detector_box";
     wall_marker.header.stamp = rclcpp::Clock().now();
     wall_marker.ns = "wall";
     wall_marker.id = 0;
@@ -533,10 +481,10 @@ void ObjectDetection::warnning_display(const int warning_code)
     wall_marker.pose.orientation.y = 0.0;
     wall_marker.pose.orientation.z = 0.0;
     wall_marker.pose.orientation.w = 1.0;
-    wall_marker.scale.x = 2.5;
-    wall_marker.scale.y = 0.05;
-    wall_marker.scale.z = 1.0;
-    wall_marker.color.a = 0.35;
+    wall_marker.scale.x = 0.25;
+    wall_marker.scale.y = 0.25;
+    wall_marker.scale.z = 0.25;
+    wall_marker.color.a = 0.7;
 
     if (warning_code == 1) {
         wall_marker.color.r = 1.0;
@@ -560,115 +508,49 @@ void ObjectDetection::warnning_display(const int warning_code)
 
 }
 
-void ObjectDetection::convex_hull(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>&& cloud_clusters)
-{
-    if (!cloud_clusters.empty())
-    {
-        int index = 0;  // Declare an index variable
-        for (auto& cluster : cloud_clusters)
-        {
-            pcl::PointCloud<pcl::PointXYZ>::Ptr convexHull(new pcl::PointCloud<pcl::PointXYZ>);
-            pcl::ConvexHull<pcl::PointXYZ> hull;
-            hull.setInputCloud(cluster); // Pass each individual cluster
-            hull.setDimension(2);
-            hull.reconstruct(*convexHull);
 
-            if (convexHull->empty())
-            {
-                RCLCPP_INFO(this->get_logger(), "Convex hull is empty.");
-                continue;
-            }
-
-            if (hull.getDimension() == 2)
-            {
-                std::vector<geometry_msgs::msg::Point> hull_points;
-                for (const auto& point : convexHull->points)
-                {
-                    geometry_msgs::msg::Point p;
-                    p.x = point.x;
-                    p.y = point.y;
-                    p.z = 0.0; // Since we are working in 2D
-                    hull_points.push_back(p);
-                }
-                // Close the loop
-                hull_points.push_back(hull_points.front());
-
-                visualization_msgs::msg::Marker hull_marker;
-                hull_marker.header.frame_id = "base_footprint";  // Replace with your frame ID
-                hull_marker.header.stamp = this->get_clock()->now();
-                hull_marker.ns = "hull";
-                hull_marker.id = index;  // Use the index variable
-                hull_marker.type = visualization_msgs::msg::Marker::LINE_STRIP;
-                hull_marker.action = visualization_msgs::msg::Marker::ADD;
-                hull_marker.scale.x = 0.1;
-                hull_marker.color.r = 0.0;
-                hull_marker.color.g = 0.0;
-                hull_marker.color.b = 1.0;
-                hull_marker.color.a = 1.0;
-                hull_marker.points = hull_points;
-
-                hull_publisher_->publish(hull_marker);
-
-                // RCLCPP_INFO(this->get_logger(), "Hull size: %zu", convexHull->size());
-            }
-            else
-            {
-                RCLCPP_INFO(this->get_logger(), "The chosen hull dimension is not correct.");
-            }
-
-            index++;  // Increment the index variable
-        }
-    }
-}
-
-void ObjectDetection::check_zones(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>&& cloud_clusters) 
+void ObjectDetection::check_zones_all_points_version2(std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr>&& cloud_clusters) 
 {
 
-    int highest_warning_code = 4; // To store the highest severity warning code
+   int highest_warning_code = 4; // To store the highest severity warning code
 
     for (const auto& cluster : cloud_clusters) 
     {
-
-        int warning_code = 4;
         if (cluster->empty()) continue;
 
-        // Initialize the closest point to a large distance
-        pcl::PointXYZ closest_point;
-        float min_distance = std::numeric_limits<float>::max();
+        bool zone_checked = false; // Flag to break out of the loop once a point in a zone is found
 
-        // Find the closest point in the cluster
         for (const auto& point : cluster->points) {
-            float distance = sqrt(point.x * point.x + point.y * point.y); // Assuming vehicle is at (0,0)
-            if (distance < min_distance) {
-                min_distance = distance;
-                closest_point = point;
+
+        
+            if (front_zone.contains(point)) {
+                highest_warning_code = std::min(highest_warning_code, 1); // Obstacle detected in red zone
+                zone_checked = true;
+                RCLCPP_INFO(this->get_logger(), "[WARNING 220] Obstacle detected in red zone.");
+                break; // No need to check further points in this cluster
+            } else if (front_zone_warning.contains(point)) {
+                highest_warning_code = std::min(highest_warning_code, 2); // Obstacle detected in yellow zone
+                zone_checked = true;
+                RCLCPP_INFO(this->get_logger(), "[WARNING 330] Obstacle detected in yellow zone.");
+                break; // No need to check further points in this cluster
             }
+
+
         }
 
-
-        if (front_zone.contains(closest_point)) {
-            // RCLCPP_INFO(this->get_logger(), "[WARNING 220] at distance: %f", min_distance);
-            warning_code = 1;
-        } else if(front_zone_warning.contains(closest_point)){
-            // RCLCPP_INFO(this->get_logger(), "[WARNING 330] at distance: %f", min_distance);
-            warning_code = 2;
+        if (zone_checked) {
+            // Optional: Log information about the detected point in the zone
+            continue; // Move to the next cluster
         }
-
-        if (warning_code < highest_warning_code) {
-            highest_warning_code = warning_code;
-        }
-
     }
 
-    if (highest_warning_code == 1) {
-        RCLCPP_INFO(this->get_logger(), "[WARNING 220] Obstacle detected in red zone");
-    } else if (highest_warning_code == 2) {
-        RCLCPP_INFO(this->get_logger(), "[WARNING 330] Obstacle detected in yellow zone");
+    if (highest_warning_code < 4) {
+        warnning_display(highest_warning_code);
     } else {
-        RCLCPP_INFO(this->get_logger(), "[INFO 000] No obstacle detected");
+        RCLCPP_INFO(this->get_logger(), "[INFO 000] No obstacle detected in any zone.");
+        warnning_display(4);
     }
 
-    warnning_display(highest_warning_code);
 
 }
 
@@ -689,7 +571,7 @@ void ObjectDetection::publish_zone(const Zone& zone1, const Zone& zone2) {
 
 visualization_msgs::msg::Marker ObjectDetection::create_zone_marker(const Zone& zone, int id, const std::string& color) {
     visualization_msgs::msg::Marker marker;
-    marker.header.frame_id = "base_link"; // Or your relevant frame
+    marker.header.frame_id = "warnings_zones_front"; // Or your relevant frame
     marker.header.stamp = this->get_clock()->now();
     marker.ns = "zone";
     marker.id = id;
@@ -715,6 +597,14 @@ visualization_msgs::msg::Marker ObjectDetection::create_zone_marker(const Zone& 
     return marker;
 }
 
+
+void ObjectDetection::side_topic_callback(const std_msgs::msg::Int32::SharedPtr msg)
+{
+
+    RCLCPP_INFO(this->get_logger(), "Received from /side_topic: %d", msg->data);
+    int_side_value_ = msg->data;
+}
+
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
     auto node = std::make_shared<ObjectDetection>();
@@ -722,4 +612,3 @@ int main(int argc, char** argv) {
     rclcpp::shutdown();
     return 0;
 }
-

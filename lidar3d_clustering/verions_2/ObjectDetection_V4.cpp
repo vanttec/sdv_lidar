@@ -233,39 +233,33 @@ ObjectDetection::~ObjectDetection()
 // Point Cloud callback
 void ObjectDetection::pointCloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg)
 {
-    // TODO: Implement a handler for the point cloud callback to avoid empty point cloud
 
     // Convert ROS PointCloud2 to PCL PointCloud
     pcl::PointCloud<pcl::PointXYZ>::Ptr input_cloud(new pcl::PointCloud<pcl::PointXYZ>);
     pcl::fromROSMsg(*msg, *input_cloud);
 
-    // Pass a const pointer (ConstPtr) to segmentPlane.
-    auto segmented_clouds = obstacle_detector->segmentPlane(input_cloud, 100, GROUND_THRESHOLD);
-    auto cloud_clusters = obstacle_detector->clustering(input_cloud, CLUSTER_THRESH, CLUSTER_MIN_SIZE, CLUSTER_MAX_SIZE);
+    // Check if the input cloud is empty
+    if (input_cloud->empty()) {
+        RCLCPP_WARN(this->get_logger(), "Received empty point cloud");
+        return;
+    }
 
+    try {
+        // auto segmented_clouds = obstacle_detector->segmentPlane(input_cloud, 100, GROUND_THRESHOLD);
+        auto cloud_clusters = obstacle_detector->clustering(input_cloud, CLUSTER_THRESH, CLUSTER_MIN_SIZE, CLUSTER_MAX_SIZE);
 
+        // Proceed with further processing only if valid data is present
+        if (!cloud_clusters.empty()) {
+            box3dcreation(std::move(cloud_clusters), msg->header);
+            convex_hull(std::move(cloud_clusters));
+            // distance_detector(std::move(cloud_clusters));
+            check_zones(std::move(cloud_clusters));
+            publish_zone(front_zone, front_zone_warning);
+        }
+    } catch (const std::exception& e) {
+        RCLCPP_ERROR(this->get_logger(), "Error processing point cloud: %s", e.what());
+    }
 
-    box3dcreation(std::move(cloud_clusters), msg->header);
-
-    // distance_detector(std::move(cloud_clusters));
-
-    
-    convex_hull(std::move(cloud_clusters));
-
-    check_zones(std::move(cloud_clusters));
-
-
-    // std::cout << "Number of clustersasdasdx223232: " << cloud_clusters.size() << std::endl;
-
-    publish_zone(front_zone,front_zone_warning);
-
-
-    // Publish ground points
-    // sensor_msgs::msg::PointCloud2 ground_cloud_msg;
-    // pcl::toROSMsg(*segmented_clouds.first, ground_cloud_msg);
-    // ground_cloud_msg.header = msg->header;
-    // ground_seg_pub_->publish(ground_cloud_msg);
-    
 }
 
 
