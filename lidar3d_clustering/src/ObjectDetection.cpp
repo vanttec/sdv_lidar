@@ -125,6 +125,8 @@ private:
     Zone front_zone_warning;
 
     int32_t int_side_value_ = 0;
+    int32_t int_warining_value = 0;
+    std_msgs::msg::Int32 message_int_warining_value;
 
     std::shared_ptr<lidar_obstacle_detector::ObstacleDetector<pcl::PointXYZ>> obstacle_detector;
 
@@ -146,6 +148,7 @@ private:
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_pub_next;
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr wall_warning;
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr zone_publisher_;
+    rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr publisher_warning_;
 
 
 public:
@@ -188,6 +191,8 @@ ObjectDetection::ObjectDetection(/* args */) : Node("lidar3d_clustering_node"), 
     obstacle_detector = std::make_shared<lidar_obstacle_detector::ObstacleDetector<pcl::PointXYZ>>();
 
     zone_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("visualization_zone_array", 10);
+    publisher_warning_ = this->create_publisher<std_msgs::msg::Int32>("warning_status", 10);
+
 
     obstacle_id_ = 0;
     // front_zone = Zone(Point{0.0, -1.0}, Point{0.0, 1.0}, Point{2.0, 1.0}, Point{2.0, -1.0});
@@ -546,9 +551,18 @@ void ObjectDetection::check_zones_all_points_version2(std::vector<pcl::PointClou
 
     if (highest_warning_code < 4) {
         warnning_display(highest_warning_code);
+
+
+        message_int_warining_value.data = highest_warning_code;
+        publisher_warning_->publish(message_int_warining_value);
+
     } else {
         RCLCPP_INFO(this->get_logger(), "[INFO 000] No obstacle detected in any zone.");
         warnning_display(4);
+
+
+        message_int_warining_value.data = 4;
+        publisher_warning_->publish(message_int_warining_value);
     }
 
 
