@@ -378,10 +378,10 @@ void ObjectDetection::publisherboxes(std::vector<BBox>&& bboxes, const std_msgs:
         connecting_lines_marker.action = visualization_msgs::msg::Marker::ADD;
         connecting_lines_marker.pose.orientation.w = 1.0;
         connecting_lines_marker.scale.x = 0.04;
-        connecting_lines_marker.color.r = 1.0;
+        connecting_lines_marker.color.r = 0.0;
         connecting_lines_marker.color.g = 0.0;
-        connecting_lines_marker.color.b = 0.0;
-        connecting_lines_marker.color.a = 1.0;
+        connecting_lines_marker.color.b = 0.8;
+        connecting_lines_marker.color.a = 0.5;
 
         // Add the points to the connecting lines marker
         connecting_lines_marker.points.push_back(p1);

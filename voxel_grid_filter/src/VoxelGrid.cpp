@@ -38,13 +38,13 @@ private:
     
     // ROI boundaries
     // The velodyne is mounted on the car with a bad orientation, so the x is the y axis. 
-    double roi_max_x_ = 4.0; //FRONT THE CAR
-    double roi_max_y_ = 15.0;  //LEFT THE CAR
-    double roi_max_z_ = 0.1; //UP THE VELODYNE
+    double roi_max_x_ = 5.0; //FRONT THE CAR
+    double roi_max_y_ = 20.0;  //LEFT THE CAR
+    double roi_max_z_ = 1.0; //UP THE VELODYNE
 
-    double roi_min_x_ = -4.0; //RIGHT THE CAR 
+    double roi_min_x_ = -5.0; //RIGHT THE CAR 
     double roi_min_y_ = -0.15; //BACK THE CAR
-    double roi_min_z_ = -1.5; //DOWN THE VELODYNE
+    double roi_min_z_ = -2.5; //DOWN THE VELODYNE
 
     Eigen::Vector4f ROI_MAX_POINT, ROI_MIN_POINT;
 
