@@ -49,7 +49,7 @@ private:
     Eigen::Vector4f ROI_MAX_POINT, ROI_MIN_POINT;
 
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr sub_;
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr down_sampling_pub_;
+    // rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr down_sampling_pub_;
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr roi_sampling_pub_;
     
 
@@ -66,7 +66,7 @@ VoxelGrid::VoxelGrid(/* args */): Node("voxel_grid_node")
 {
     sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>("/velodyne_points", 10, std::bind(&VoxelGrid::pointCloudCallback, this, std::placeholders::_1));
 
-    down_sampling_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("points_down_sampling", 10);
+    // down_sampling_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("points_down_sampling", 10);
     roi_sampling_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("points_roi", 10);
 
     ROI_MAX_POINT = Eigen::Vector4f(roi_max_x_, roi_max_y_, roi_max_z_, 1);

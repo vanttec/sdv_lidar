@@ -40,9 +40,9 @@ struct BBox
     float y_max;
     float z_min;
     float z_max;
-    double r = 1.0;
-    double g = 1.0;
-    double b = 0.0;
+    double r = 42.0 / 255.0;
+    double g = 157.0 / 255.0;
+    double b = 244.0 / 255.0;
 };
 
 
@@ -181,16 +181,16 @@ ObjectDetection::ObjectDetection(/* args */) : Node("lidar3d_clustering_node"), 
 
     
     // Create subscriber
-    sub_points_cloud_ = this->create_subscription<sensor_msgs::msg::PointCloud2>("/points_roi", 10, std::bind(&ObjectDetection::pointCloudCallback, this, std::placeholders::_1)); // roi points cloud
+    sub_points_cloud_ = this->create_subscription<sensor_msgs::msg::PointCloud2>("/points_ground", 10, std::bind(&ObjectDetection::pointCloudCallback, this, std::placeholders::_1)); // roi points cloud
 
     // Create publisher
     // ground_seg_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("ground_points", 10); // ground points
-    marker_pub_next = this->create_publisher<visualization_msgs::msg::MarkerArray>("visualization_marker_array_next", 10); // detector objects
-    wall_warning = this->create_publisher<visualization_msgs::msg::Marker>("visualization_marker", 10);
+    marker_pub_next = this->create_publisher<visualization_msgs::msg::MarkerArray>("/object_bounding_box", 10); // detector objects
+    wall_warning = this->create_publisher<visualization_msgs::msg::Marker>("warning_visualization_tool", 10);
     // Create point processor
     obstacle_detector = std::make_shared<lidar_obstacle_detector::ObstacleDetector<pcl::PointXYZ>>();
 
-    zone_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("visualization_zone_array", 10);
+    zone_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("visualization_zone", 10);
     publisher_warning_ = this->create_publisher<std_msgs::msg::Int32>("warning_status", 10);
 
 
@@ -378,9 +378,9 @@ void ObjectDetection::publisherboxes(std::vector<BBox>&& bboxes, const std_msgs:
         connecting_lines_marker.action = visualization_msgs::msg::Marker::ADD;
         connecting_lines_marker.pose.orientation.w = 1.0;
         connecting_lines_marker.scale.x = 0.04;
-        connecting_lines_marker.color.r = 0.0;
-        connecting_lines_marker.color.g = 0.0;
-        connecting_lines_marker.color.b = 0.8;
+        connecting_lines_marker.color.r = bbox.r;
+        connecting_lines_marker.color.g = bbox.g;
+        connecting_lines_marker.color.b = bbox.b;
         connecting_lines_marker.color.a = 0.5;
 
         // Add the points to the connecting lines marker
@@ -408,12 +408,12 @@ void ObjectDetection::publisherboxes(std::vector<BBox>&& bboxes, const std_msgs:
         corner_marker.type = visualization_msgs::msg::Marker::SPHERE;
         corner_marker.action = visualization_msgs::msg::Marker::ADD;
         corner_marker.pose.orientation.w = 1.0;
-        corner_marker.scale.x = 0.2;
-        corner_marker.scale.y = 0.2;
-        corner_marker.scale.z = 0.2;
+        corner_marker.scale.x = 0.15;
+        corner_marker.scale.y = 0.15;
+        corner_marker.scale.z = 0.15;
         corner_marker.color.r = bbox.r;
-        corner_marker.color.g = 0.2;
-        corner_marker.color.b = 0.5;
+        corner_marker.color.g = bbox.g;
+        corner_marker.color.b = bbox.b;
         corner_marker.color.a = 0.64;
 
         // Create a sphere for each corner and add it to the marker array
@@ -544,7 +544,7 @@ void ObjectDetection::check_zones_all_points_version2(std::vector<pcl::PointClou
         }
 
         if (zone_checked) {
-            // Optional: Log information about the detected point in the zone
+
             continue; // Move to the next cluster
         }
     }
@@ -585,7 +585,7 @@ void ObjectDetection::publish_zone(const Zone& zone1, const Zone& zone2) {
 
 visualization_msgs::msg::Marker ObjectDetection::create_zone_marker(const Zone& zone, int id, const std::string& color) {
     visualization_msgs::msg::Marker marker;
-    marker.header.frame_id = "base_footprint"; // Or your relevant frame
+    marker.header.frame_id = "base_footprint"; 
     marker.header.stamp = this->get_clock()->now();
     marker.ns = "zone";
     marker.id = id;

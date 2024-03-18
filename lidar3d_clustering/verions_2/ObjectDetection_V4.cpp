@@ -38,9 +38,9 @@ struct BBox
     float y_max;
     float z_min;
     float z_max;
-    double r = 1.0;
-    double g = 1.0;
-    double b = 0.0;
+    double r = 0.0;
+    double g = 0.0;
+    double b = 1.0;
 };
 
 
@@ -191,7 +191,7 @@ ObjectDetection::ObjectDetection(/* args */) : Node("lidar3d_clustering_node"), 
 
     
     // Create subscriber
-    sub_points_cloud_ = this->create_subscription<sensor_msgs::msg::PointCloud2>("/points_roi", 10, std::bind(&ObjectDetection::pointCloudCallback, this, std::placeholders::_1)); // roi points cloud
+    sub_points_cloud_ = this->create_subscription<sensor_msgs::msg::PointCloud2>("/points_ground", 10, std::bind(&ObjectDetection::pointCloudCallback, this, std::placeholders::_1)); // roi points cloud
 
     // Create publisher
     // ground_seg_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("ground_points", 10); // ground points
@@ -298,9 +298,11 @@ void ObjectDetection::publisherboxes(std::vector<BBox>&& bboxes, const std_msgs:
 
     visualization_msgs::msg::MarkerArray marker_array;
 
+    const std_msgs::msg::Header& header_base = "base_footprint";
+
 
     int id = 0;
-    const std_msgs::msg::Header& inp_header = header;
+    const std_msgs::msg::Header& inp_header = header_base;
     // Create a marker for each bounding box
     for (const auto& bbox : bboxes)
     {
@@ -316,7 +318,7 @@ void ObjectDetection::publisherboxes(std::vector<BBox>&& bboxes, const std_msgs:
         top_square_marker.color.r = bbox.r;
         top_square_marker.color.g = bbox.g;
         top_square_marker.color.b = bbox.b;
-        top_square_marker.color.a = 1.0;
+        top_square_marker.color.a = 0.8;
 
         // Add the points to the top square marker
         geometry_msgs::msg::Point p1, p2, p3, p4;
@@ -373,9 +375,9 @@ void ObjectDetection::publisherboxes(std::vector<BBox>&& bboxes, const std_msgs:
         connecting_lines_marker.action = visualization_msgs::msg::Marker::ADD;
         connecting_lines_marker.pose.orientation.w = 1.0;
         connecting_lines_marker.scale.x = 0.04;
-        connecting_lines_marker.color.r = 1.0;
+        connecting_lines_marker.color.r = 0.0;
         connecting_lines_marker.color.g = 0.0;
-        connecting_lines_marker.color.b = 0.0;
+        connecting_lines_marker.color.b = 1.0;
         connecting_lines_marker.color.a = 1.0;
 
         // Add the points to the connecting lines marker
