@@ -7,6 +7,11 @@
 #include <visualization_msgs/msg/marker_array.hpp>
 #include <visualization_msgs/msg/marker.hpp>
 
+
+
+#include <geometry_msgs/msg/pose_stamped.hpp>
+
+
 // C++
 #include <iostream>
 #include <vector>
@@ -306,7 +311,17 @@ void ObjectDetection::publisherboxes(std::vector<BBox>&& bboxes, const std_msgs:
 
     int id = 0;
     const std_msgs::msg::Header& inp_header = header;
+
+    geometry_msgs::msg::Quaternion neutral_orientation;
+    neutral_orientation.x = 0.0;
+    neutral_orientation.y = 0.0;
+    neutral_orientation.z = 0.0;
+    neutral_orientation.w = 1.0; 
+
+
     // Create a marker for each bounding box
+
+
     for (const auto& bbox : bboxes)
     {
         // Create the marker for the top square
@@ -316,7 +331,7 @@ void ObjectDetection::publisherboxes(std::vector<BBox>&& bboxes, const std_msgs:
         top_square_marker.id = id++;
         top_square_marker.type = visualization_msgs::msg::Marker::LINE_STRIP;
         top_square_marker.action = visualization_msgs::msg::Marker::ADD;
-        top_square_marker.pose.orientation.w = 1.0;
+        top_square_marker.pose.orientation = neutral_orientation;
         top_square_marker.scale.x = 0.06;
         top_square_marker.color.r = bbox.r;
         top_square_marker.color.g = bbox.g;
@@ -345,7 +360,7 @@ void ObjectDetection::publisherboxes(std::vector<BBox>&& bboxes, const std_msgs:
         bottom_square_marker.id = id++;
         bottom_square_marker.type = visualization_msgs::msg::Marker::LINE_STRIP;
         bottom_square_marker.action = visualization_msgs::msg::Marker::ADD;
-        bottom_square_marker.pose.orientation.w = 1.0;
+        bottom_square_marker.pose.orientation = neutral_orientation;
         bottom_square_marker.scale.x = 0.04;
         bottom_square_marker.color.r = bbox.r;
         bottom_square_marker.color.g = bbox.g;
@@ -376,7 +391,7 @@ void ObjectDetection::publisherboxes(std::vector<BBox>&& bboxes, const std_msgs:
         connecting_lines_marker.id = id++;
         connecting_lines_marker.type = visualization_msgs::msg::Marker::LINE_LIST;
         connecting_lines_marker.action = visualization_msgs::msg::Marker::ADD;
-        connecting_lines_marker.pose.orientation.w = 1.0;
+        connecting_lines_marker.pose.orientation = neutral_orientation;
         connecting_lines_marker.scale.x = 0.04;
         connecting_lines_marker.color.r = bbox.r;
         connecting_lines_marker.color.g = bbox.g;
@@ -407,7 +422,7 @@ void ObjectDetection::publisherboxes(std::vector<BBox>&& bboxes, const std_msgs:
         corner_marker.id = id++;
         corner_marker.type = visualization_msgs::msg::Marker::SPHERE;
         corner_marker.action = visualization_msgs::msg::Marker::ADD;
-        corner_marker.pose.orientation.w = 1.0;
+        corner_marker.pose.orientation = neutral_orientation;
         corner_marker.scale.x = 0.15;
         corner_marker.scale.y = 0.15;
         corner_marker.scale.z = 0.15;

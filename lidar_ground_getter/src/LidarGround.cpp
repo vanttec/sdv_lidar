@@ -83,7 +83,7 @@ void LidarGround::pointCloudCallback(const sensor_msgs::msg::PointCloud2::Shared
     seg.setOptimizeCoefficients(true);
     seg.setModelType(pcl::SACMODEL_PLANE);
     seg.setMethodType(pcl::SAC_RANSAC);
-    seg.setDistanceThreshold(0.25);
+    seg.setDistanceThreshold(0.30);
 
     seg.setInputCloud(input_cloud);
     seg.segment(*inliers, *coefficients);
