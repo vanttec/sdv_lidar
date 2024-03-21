@@ -141,4 +141,15 @@
   </link>
 
 
+  <link name="vectornav">
+
+  </link>
+
+  <joint name="vectornav_joint" type="fixed">
+    <origin xyz="0 -0.2 1.8" rpy="0 0 0" />
+    <parent link="base_link"/>
+    <child link="vectornav"/>
+
+  </joint>
+
 </robot>
