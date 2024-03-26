@@ -7,7 +7,7 @@
 #include <message_filters/subscriber.h>
 #include <message_filters/sync_policies/approximate_time.h>
 #include <message_filters/synchronizer.h>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 
@@ -110,7 +110,7 @@ LidarImuSync::~LidarImuSync()
 
 void LidarImuSync::points_imuCallback(const ImuMsg::ConstSharedPtr &msg1, const PointCloudMsg::ConstSharedPtr &msg2)
 {
-    RCLCPP_INFO(this->get_logger(), "\033[1;34m -> lidar & imu data received <- \033[0m");
+    // RCLCPP_INFO(this->get_logger(), "\033[1;34m -> lidar & imu data received <- \033[0m");
 
     // get the imu data
     sensor_msgs::msg::Imu imu_data = *msg1;
