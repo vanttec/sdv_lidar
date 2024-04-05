@@ -110,7 +110,7 @@ LidarImuSync::~LidarImuSync()
 
 void LidarImuSync::points_imuCallback(const ImuMsg::ConstSharedPtr &msg1, const PointCloudMsg::ConstSharedPtr &msg2)
 {
-    // RCLCPP_INFO(this->get_logger(), "\033[1;34m -> lidar & imu data received <- \033[0m");
+    RCLCPP_INFO(this->get_logger(), "\033[1;34m -> lidar & imu data received <- \033[0m");
 
     // get the imu data
     sensor_msgs::msg::Imu imu_data = *msg1;
